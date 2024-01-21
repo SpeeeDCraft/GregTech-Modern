@@ -17,7 +17,6 @@ import com.gregtechceu.gtceu.api.item.capability.ElectricItem;
 import com.gregtechceu.gtceu.api.item.component.ElectricStats;
 import com.gregtechceu.gtceu.api.item.component.IItemUIFactory;
 import com.gregtechceu.gtceu.api.item.component.forge.IComponentCapability;
-import com.gregtechceu.gtceu.api.item.gui.PlayerInventoryHolder;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.item.tool.IGTToolDefinition;
 import com.gregtechceu.gtceu.api.item.tool.ToolHelper;
@@ -27,7 +26,6 @@ import com.gregtechceu.gtceu.api.item.tool.behavior.IToolBehavior;
 import com.gregtechceu.gtceu.api.sound.SoundEntry;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.core.ICraftRemainder;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTUtil;
 import com.gregtechceu.gtceu.utils.ModHandler;
@@ -70,6 +68,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.TierSortingRegistry;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
@@ -82,12 +81,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.gregtechceu.gtceu.api.item.tool.ToolHelper.*;
 import static net.minecraft.world.item.Item.BASE_ATTACK_DAMAGE_UUID;
 import static net.minecraft.world.item.Item.BASE_ATTACK_SPEED_UUID;
 
-public interface IGTTool extends IItemUIFactory, ItemLike {
+public interface IGTTool extends HeldItemUIFactory.IHeldItemUIHolder, ItemLike {
 
     Material getMaterial();
     
@@ -361,7 +361,7 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
         if (player.level().isClientSide) return false;
         getToolStats().getBehaviors().forEach(behavior -> behavior.onBlockStartBreak(stack, pos, player));
 
-        if (!player.isCrouching()) {
+        if (!player.isShiftKeyDown()) {
             ServerPlayer playerMP = (ServerPlayer) player;
             int result = -1;
             if (isTool(stack, GTToolType.SHEARS)) {
@@ -409,7 +409,7 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
             if (entityLiving instanceof Player && playSoundOnBlockDestroy()) {
                 // sneaking disables AOE, which means it is okay to play the sound
                 // not checking this means the sound will play for every AOE broken block, which is very loud
-                if (entityLiving.isCrouching()) {
+                if (entityLiving.isShiftKeyDown()) {
                     playSound((Player) entityLiving);
                 }
             }
@@ -482,7 +482,7 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
             return ItemStack.EMPTY;
         }
         stack = stack.copy();
-        Player player = ICraftRemainder.craftingPlayer.get();
+        Player player = ForgeHooks.getCraftingPlayer();
         damageItemWhenCrafting(stack, player);
         playCraftingSound(player, stack);
         // We cannot simply return the copied stack here because Forge's bug
@@ -574,13 +574,15 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
 
     default InteractionResultHolder<ItemStack> definition$use(Level world, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (!world.isClientSide) {
-            // TODO: relocate to keybind action when keybind PR happens
-            if (player.isCrouching() && getMaxAoEDefinition(stack) != AoESymmetrical.none()) {
-                PlayerInventoryHolder.openHandItemUI(player, hand);
-                return InteractionResultHolder.success(stack);
+        // TODO: relocate to keybind action when keybind PR happens
+        if (player.isShiftKeyDown() && getMaxAoEDefinition(stack) != AoESymmetrical.none()) {
+            ItemStack heldItem = player.getItemInHand(hand);
+            if (player instanceof ServerPlayer serverPlayer) {
+                HeldItemUIFactory.INSTANCE.openUI(serverPlayer, hand);
             }
+            return InteractionResultHolder.success(heldItem);
         }
+
 
         for (IToolBehavior behavior : getToolStats().getBehaviors()) {
             if (behavior.onItemRightClick(world, player, hand).getResult() == InteractionResult.SUCCESS) {
@@ -682,8 +684,9 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
 
         // valid tools
         tooltip.add(Component.translatable("item.gtceu.tool.usable_as",
-                getToolClasses(stack).stream()
-                        .map(s -> Component.translatable("gtceu.tool.class." + s.name))
+                getToolClassNames(stack).stream()
+                        .filter(s -> I18n.exists("gtceu.tool.class." + s))
+                        .map(s -> Component.translatable("gtceu.tool.class." + s))
                         .collect(Component::empty, FormattingUtil::combineComponents, FormattingUtil::combineComponents)
         ));
 
@@ -795,7 +798,8 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
         }
     }
 
-    default ModularUI createUI(HeldItemUIFactory.HeldItemHolder holder, Player entityPlayer) {
+    @Override
+    default ModularUI createUI(Player entityPlayer, HeldItemUIFactory.HeldItemHolder holder) {
         CompoundTag tag = getBehaviorsTag(holder.getHeld());
         AoESymmetrical defaultDefinition = getMaxAoEDefinition(holder.getHeld());
         return new ModularUI(120, 80, holder, entityPlayer).background(GuiTextures.BACKGROUND)
@@ -836,6 +840,10 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
 
     Set<GTToolType> getToolClasses(ItemStack stack);
 
+    default Set<String> getToolClassNames(ItemStack stack) {
+        return getToolClasses(stack).stream().flatMap(type -> type.toolClassNames.stream()).collect(Collectors.toSet());
+    }
+
     @Nullable
     default ICapabilityProvider definition$initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
         List<ICapabilityProvider> providers = new ArrayList<>();
@@ -863,7 +871,7 @@ public interface IGTTool extends IItemUIFactory, ItemLike {
         return new CombinedCapabilityProvider(providers);
     }
 
-    static boolean definition$isCorrectToolForDrops(ItemStack stack, BlockState state) {
+    default boolean definition$isCorrectToolForDrops(ItemStack stack, BlockState state) {
         if (stack.getItem() instanceof IGTTool gtTool) {
             if (TierSortingRegistry.isTierSorted(gtTool.getTier())) {
                 return TierSortingRegistry.isCorrectTierForDrops(gtTool.getTier(), state) && gtTool.getToolClasses(stack).stream().anyMatch(type -> type.harvestTags.stream().anyMatch(state::is));

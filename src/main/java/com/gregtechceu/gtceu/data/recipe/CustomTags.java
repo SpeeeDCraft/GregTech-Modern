@@ -18,6 +18,8 @@ public class CustomTags {
     public static final TagKey<Item> GLASS_BLOCKS = TagUtil.createItemTag("glass");
     public static final TagKey<Item> GLASS_PANES = TagUtil.createItemTag("glass_panes");
     public static final TagKey<Item> SEEDS = TagUtil.createItemTag("seeds");
+    public static final TagKey<Item> CONCRETE_ITEM = TagUtil.createItemTag("concrete");
+    public static final TagKey<Item> CONCRETE_POWDER_ITEM = TagUtil.createItemTag("concrete_powder");
 
     // Added Gregtech tags
     public static final TagKey<Item> TRANSISTORS = TagUtil.createModItemTag("transistors");
@@ -60,7 +62,7 @@ public class CustomTags {
     public static final TagKey<Block> NEEDS_WOOD_TOOL = TagUtil.createBlockTag("needs_wood_tool");
     public static final TagKey<Block> NEEDS_GOLD_TOOL = TagUtil.createBlockTag("needs_gold_tool");
     public static final TagKey<Block> NEEDS_NETHERITE_TOOL = TagUtil.createBlockTag("needs_netherite_tool");
-    public static final TagKey<Block> NEEDS_NAQ_ALLOY_TOOL = TagUtil.createBlockTag("needs_naquadah_alloy_tool");
+    public static final TagKey<Block> NEEDS_DURANIUM_TOOL = TagUtil.createBlockTag("needs_duranium_tool");
     public static final TagKey<Block> NEEDS_NEUTRONIUM_TOOL = TagUtil.createBlockTag("needs_neutronium_tool");
 
     @SuppressWarnings("unchecked")
@@ -70,13 +72,13 @@ public class CustomTags {
             BlockTags.NEEDS_IRON_TOOL,
             BlockTags.NEEDS_DIAMOND_TOOL,
             NEEDS_NETHERITE_TOOL,
-            NEEDS_NAQ_ALLOY_TOOL,
+            NEEDS_DURANIUM_TOOL,
             NEEDS_NEUTRONIUM_TOOL,
     };
 
     public static final TagKey<Block> ENDSTONE_ORE_REPLACEABLES = TagUtil.createBlockTag("end_stone_ore_replaceables");
-    public static final TagKey<Block> CONCRETE = TagUtil.createBlockTag("concrete");
-    public static final TagKey<Block> CONCRETE_POWDER = TagUtil.createBlockTag("concrete_powder");
+    public static final TagKey<Block> CONCRETE_BLOCK = TagUtil.createBlockTag("concrete");
+    public static final TagKey<Block> CONCRETE_POWDER_BLOCK = TagUtil.createBlockTag("concrete_powder");
     public static final TagKey<Block> GLASS_BLOCKS_BLOCK = TagUtil.createBlockTag("glass");
     public static final TagKey<Block> GLASS_PANES_BLOCK = TagUtil.createBlockTag("glass_panes");
     public static final TagKey<Block> CREATE_SEATS = TagUtil.optionalTag(Registries.BLOCK, new ResourceLocation(GTValues.MODID_CREATE, "seats"));
